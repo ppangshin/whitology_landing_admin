@@ -242,24 +242,11 @@ tbody tr:hover { background:var(--surface-2); }
 </div>
 
 <script>
-const SHEET_API = 'https://script.google.com/macros/s/AKfycbxoBgZdETCrpXv4IYRUymnBlqBYgvlWh78Go6FtzOBfI-I-hYS2y_qcU5wEiAl8e-Iw/exec';
-
-let cachedData = { visits: [], clicks: [], submissions: [] };
-
-async function fetchFromSheet() {
-  try {
-    const res = await fetch(SHEET_API);
-    const data = await res.json();
-    cachedData = data;
-    return data;
-  } catch (err) {
-    console.error('Sheet fetch failed:', err);
-    return cachedData;
-  }
-}
+const STORAGE_KEY = 'whitology_analytics';
 
 function getAnalytics() {
-  return cachedData;
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {visits:[],clicks:[],submissions:[]}; }
+  catch { return {visits:[],clicks:[],submissions:[]}; }
 }
 
 function formatTime(iso) {
@@ -278,8 +265,7 @@ const BUTTON_TAGS = {
 function getButtonLabel(id) { return BUTTON_LABELS[id]||id; }
 function getButtonTag(id) { return `<span class="tag ${BUTTON_TAGS[id]||'tag-blue'}">${getButtonLabel(id)}</span>`; }
 
-async function renderDashboard() {
-  await fetchFromSheet();
+function renderDashboard() {
   const data = getAnalytics();
   const {visits,clicks,submissions} = data;
 
@@ -392,11 +378,14 @@ function dl(content,filename,type) {
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);
 }
 function clearData() {
-  alert('데이터 삭제는 Google Sheet에서 직접 해주세요.\n시트에서 행을 선택 후 삭제하면 됩니다.');
+  if(confirm('모든 분석 데이터를 삭제하시겠습니까?')){localStorage.removeItem(STORAGE_KEY);renderDashboard();}
 }
 
-// Auto refresh (15초마다 Google Sheet에서 데이터 가져오기)
-setInterval(renderDashboard, 15000);
+// Real-time updates via BroadcastChannel
+try{const bc=new BroadcastChannel('whitology_analytics');bc.onmessage=()=>renderDashboard();}catch(e){}
+
+// Auto refresh
+setInterval(renderDashboard,5000);
 renderDashboard();
 </script>
 </body>
