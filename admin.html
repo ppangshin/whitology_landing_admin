@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whitology Admin — Analytics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0e14;
+  --surface: #141722;
+  --surface-2: #1a1e2e;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
+  --text: #e8ecf1;
+  --text-muted: #6b7a90;
+  --accent: #00d4aa;
+  --accent-dim: rgba(0,212,170,0.15);
+  --blue: #3a7bd5;
+  --blue-dim: rgba(58,123,213,0.15);
+  --coral: #ff6b6b;
+  --coral-dim: rgba(255,107,107,0.15);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.15);
+  --violet: #9b7dd4;
+  --violet-dim: rgba(155,125,212,0.15);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.dashboard { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  display: flex; flex-direction: column;
+}
+.sidebar-logo { padding:0 24px; font-size:1.2rem; font-weight:700; margin-bottom:8px; }
+.sidebar-logo span { color: var(--accent); }
+.sidebar-sub { padding:0 24px; font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:32px; }
+.sidebar-nav { flex:1; }
+.sidebar-nav a {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 24px; color:var(--text-muted); text-decoration:none;
+  font-size:0.88rem; font-weight:500; transition:all 0.2s;
+  border-left:3px solid transparent;
+}
+.sidebar-nav a:hover { color:var(--text); background:var(--surface-2); }
+.sidebar-nav a.active { color:var(--accent); background:var(--accent-dim); border-left-color:var(--accent); }
+.sidebar-footer { padding:16px 24px; border-top:1px solid var(--border); font-size:0.75rem; color:var(--text-muted); }
+
+/* Main */
+.main { padding:32px; overflow-y:auto; max-height:100vh; }
+.main-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:12px; }
+.main-header h1 { font-size:1.5rem; font-weight:700; }
+.main-header-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.badge-live {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--accent-dim); color:var(--accent);
+  padding:6px 14px; border-radius:100px; font-size:0.75rem; font-weight:600;
+}
+.badge-live::before { content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; animation:blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+.btn-export {
+  background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+  padding:8px 18px; border-radius:8px; font-size:0.82rem; font-weight:500;
+  cursor:pointer; transition:all 0.2s; font-family:inherit;
+}
+.btn-export:hover { border-color:var(--accent); color:var(--accent); }
+.btn-clear {
+  background:var(--coral-dim); border:1px solid rgba(255,107,107,0.2); color:var(--coral);
+  padding:8px 18px; border-radius:8px; font-size:0.82rem; font-weight:500;
+  cursor:pointer; transition:all 0.2s; font-family:inherit;
+}
+
+/* Stat Cards */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.stat-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px;
+}
+.stat-card-label { display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--text-muted); font-weight:500; margin-bottom:12px; }
+.stat-card-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; }
+.stat-card-value { font-family:'JetBrains Mono',monospace; font-size:2rem; font-weight:600; line-height:1; margin-bottom:8px; }
+.stat-card-change { font-size:0.75rem; font-weight:500; }
+.stat-card-change.up { color:var(--accent); }
+
+/* Charts */
+.charts-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:28px; }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; }
+.chart-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.chart-card-title { font-size:0.95rem; font-weight:600; }
+.chart-card-subtitle { font-size:0.75rem; color:var(--text-muted); }
+
+.bar-chart { display:flex; align-items:flex-end; gap:8px; height:200px; padding-top:20px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+.bar { width:100%; max-width:40px; border-radius:6px 6px 2px 2px; background:linear-gradient(180deg,var(--accent),rgba(0,212,170,0.4)); transition:height 0.6s; min-height:4px; }
+.bar-label { font-size:0.65rem; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+.bar-value { font-size:0.65rem; color:var(--text); font-family:'JetBrains Mono',monospace; font-weight:600; }
+
+.donut-container { display:flex; flex-direction:column; align-items:center; gap:24px; position:relative; }
+.donut { width:160px; height:160px; border-radius:50%; }
+.donut-center-text { position:absolute; top:80px; left:50%; transform:translate(-50%,-50%); text-align:center; }
+.donut-center-text .val { font-family:'JetBrains Mono',monospace; font-size:1.8rem; font-weight:600; }
+.donut-center-text .lbl { font-size:0.7rem; color:var(--text-muted); }
+.donut-legend { display:flex; flex-direction:column; gap:8px; width:100%; }
+.legend-item { display:flex; align-items:center; justify-content:space-between; font-size:0.8rem; }
+.legend-dot { width:8px; height:8px; border-radius:50%; margin-right:8px; display:inline-block; }
+.legend-left { display:flex; align-items:center; color:var(--text-muted); }
+.legend-right { font-family:'JetBrains Mono',monospace; font-weight:500; }
+
+/* Tables */
+.table-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:28px; }
+.table-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.table-card-title { font-size:0.95rem; font-weight:600; }
+table { width:100%; border-collapse:collapse; }
+thead th { text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--border); }
+tbody td { padding:12px; font-size:0.8rem; border-bottom:1px solid var(--border); font-family:'JetBrains Mono',monospace; }
+tbody tr:last-child td { border-bottom:none; }
+tbody tr:hover { background:var(--surface-2); }
+.tag { display:inline-block; padding:3px 10px; border-radius:100px; font-size:0.7rem; font-weight:600; }
+.tag-green { background:var(--accent-dim); color:var(--accent); }
+.tag-blue { background:var(--blue-dim); color:var(--blue); }
+.tag-amber { background:var(--amber-dim); color:var(--amber); }
+.tag-coral { background:var(--coral-dim); color:var(--coral); }
+
+@media (max-width:1024px) {
+  .dashboard { grid-template-columns:1fr; }
+  .sidebar { display:none; }
+  .stats-row { grid-template-columns:repeat(2,1fr); }
+  .charts-row { grid-template-columns:1fr; }
+}
+@media (max-width:640px) {
+  .main { padding:16px; }
+  .stats-row { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <aside class="sidebar">
+    <div class="sidebar-logo">Whit<span>o</span>logy</div>
+    <div class="sidebar-sub">Admin Dashboard</div>
+    <nav class="sidebar-nav">
+      <a href="#" class="active">📊 Overview</a>
+      <a href="#">🖱️ Click Tracking</a>
+      <a href="#">📋 Submissions</a>
+      <a href="#">🔗 Traffic Sources</a>
+    </nav>
+    <div class="sidebar-footer">Last updated: <span id="lastUpdate">—</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <div>
+        <h1>Analytics Overview</h1>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">고객 페이지 유입 및 행동 데이터</p>
+      </div>
+      <div class="main-header-actions">
+        <span class="badge-live">실시간</span>
+        <button class="btn-export" onclick="exportCSV()">📥 CSV 내보내기</button>
+        <button class="btn-export" onclick="exportJSON()">📄 JSON 내보내기</button>
+        <button class="btn-clear" onclick="clearData()">🗑️ 초기화</button>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--blue-dim);color:var(--blue);">👁</div>페이지 방문</div>
+        <div class="stat-card-value" id="totalVisits">0</div>
+        <div class="stat-card-change up" id="visitsChange">오늘 +0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--accent-dim);color:var(--accent);">🖱</div>CTA 클릭</div>
+        <div class="stat-card-value" id="totalClicks">0</div>
+        <div class="stat-card-change up" id="clicksChange">오늘 +0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--amber-dim);color:var(--amber);">📝</div>사전예약 신청</div>
+        <div class="stat-card-value" id="totalSubmissions">0</div>
+        <div class="stat-card-change up" id="subsChange">오늘 +0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--violet-dim);color:var(--violet);">📈</div>전환율</div>
+        <div class="stat-card-value" id="conversionRate">0%</div>
+        <div class="stat-card-change" style="color:var(--text-muted);">클릭→신청</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">일별 방문 추이</div><div class="chart-card-subtitle">최근 7일</div></div>
+        </div>
+        <div class="bar-chart" id="visitChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">클릭 분포</div><div class="chart-card-subtitle">버튼별 비율</div></div>
+        </div>
+        <div class="donut-container" id="clickDonut"></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">🖱️ 최근 클릭 이벤트</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);" id="clickCount">0건</div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table><thead><tr><th>시간</th><th>버튼</th><th>UTM Source</th><th>UTM Campaign</th><th>Referrer</th></tr></thead>
+        <tbody id="clicksTable"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">📋 사전예약 신청 목록</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);" id="subCount">0건</div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table><thead><tr><th>시간</th><th>이름</th><th>연락처</th><th>이메일</th><th>UTM Source</th><th>UTM Campaign</th></tr></thead>
+        <tbody id="submissionsTable"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header"><div class="table-card-title">🔗 유입 경로 분석</div></div>
+      <div style="overflow-x:auto;">
+        <table><thead><tr><th>UTM Source</th><th>UTM Medium</th><th>UTM Campaign</th><th>방문수</th><th>클릭수</th><th>신청수</th></tr></thead>
+        <tbody id="sourcesTable"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr></tbody></table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const STORAGE_KEY = 'whitology_analytics';
+
+function getAnalytics() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {visits:[],clicks:[],submissions:[]}; }
+  catch { return {visits:[],clicks:[],submissions:[]}; }
+}
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function isToday(iso) { return new Date(iso).toDateString() === new Date().toDateString(); }
+
+const BUTTON_LABELS = {
+  'nav_cta':'상단 사전예약','hero_cta_primary':'히어로 사전예약',
+  'hero_cta_secondary':'자세히 알아보기','bottom_cta':'하단 CTA','floating_cta':'플로팅 버튼'
+};
+const BUTTON_TAGS = {
+  'nav_cta':'tag-blue','hero_cta_primary':'tag-green',
+  'hero_cta_secondary':'tag-amber','bottom_cta':'tag-coral','floating_cta':'tag-green'
+};
+function getButtonLabel(id) { return BUTTON_LABELS[id]||id; }
+function getButtonTag(id) { return `<span class="tag ${BUTTON_TAGS[id]||'tag-blue'}">${getButtonLabel(id)}</span>`; }
+
+function renderDashboard() {
+  const data = getAnalytics();
+  const {visits,clicks,submissions} = data;
+
+  document.getElementById('totalVisits').textContent = visits.length;
+  document.getElementById('totalClicks').textContent = clicks.length;
+  document.getElementById('totalSubmissions').textContent = submissions.length;
+
+  const todayV = visits.filter(v=>isToday(v.timestamp)).length;
+  const todayC = clicks.filter(c=>isToday(c.timestamp)).length;
+  const todayS = submissions.filter(s=>isToday(s.timestamp)).length;
+  document.getElementById('visitsChange').textContent = `오늘 +${todayV}`;
+  document.getElementById('clicksChange').textContent = `오늘 +${todayC}`;
+  document.getElementById('subsChange').textContent = `오늘 +${todayS}`;
+
+  const conv = clicks.length>0 ? ((submissions.length/clicks.length)*100).toFixed(1) : '0';
+  document.getElementById('conversionRate').textContent = conv+'%';
+
+  // Bar chart
+  const days = [];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().split('T')[0]);}
+  const counts = days.map(day=>visits.filter(v=>v.timestamp.startsWith(day)).length);
+  const max = Math.max(...counts,1);
+  document.getElementById('visitChart').innerHTML = days.map((day,i)=>{
+    const pct=(counts[i]/max)*100;
+    const label=new Date(day).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
+    return `<div class="bar-col"><div class="bar-value">${counts[i]}</div><div class="bar" style="height:${Math.max(pct,3)}%"></div><div class="bar-label">${label}</div></div>`;
+  }).join('');
+
+  // Donut
+  const donut = document.getElementById('clickDonut');
+  if(clicks.length===0){ donut.innerHTML='<p style="color:var(--text-muted);padding:40px;">클릭 데이터 없음</p>'; }
+  else {
+    const bc={}; clicks.forEach(c=>{bc[c.button]=(bc[c.button]||0)+1;});
+    const total=clicks.length;
+    const colors={'nav_cta':'var(--blue)','hero_cta_primary':'var(--accent)','hero_cta_secondary':'var(--amber)','bottom_cta':'var(--coral)','floating_cta':'var(--violet)'};
+    let parts=[],cum=0;
+    const entries=Object.entries(bc).sort((a,b)=>b[1]-a[1]);
+    entries.forEach(([btn,count])=>{
+      const pct=(count/total)*100;
+      const col=colors[btn]||'var(--text-muted)';
+      parts.push(`${col} ${cum}% ${cum+pct}%`);
+      cum+=pct;
+    });
+    const legend=entries.map(([btn,count])=>{
+      const col=colors[btn]||'var(--text-muted)';
+      const pct=((count/total)*100).toFixed(0);
+      return `<div class="legend-item"><span class="legend-left"><span class="legend-dot" style="background:${col}"></span>${getButtonLabel(btn)}</span><span class="legend-right">${count} (${pct}%)</span></div>`;
+    }).join('');
+    donut.innerHTML=`
+      <div style="position:relative;width:160px;height:160px;">
+        <div class="donut" style="width:160px;height:160px;background:conic-gradient(${parts.join(',')});-webkit-mask:radial-gradient(circle,transparent 55%,black 55.5%);mask:radial-gradient(circle,transparent 55%,black 55.5%);"></div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:1.8rem;font-weight:600;">${total}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);">총 클릭</div>
+        </div>
+      </div>
+      <div class="donut-legend">${legend}</div>`;
+  }
+
+  // Clicks table
+  document.getElementById('clicksTable').innerHTML = clicks.length===0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr>'
+    : clicks.slice().reverse().slice(0,50).map(c=>`<tr><td>${formatTime(c.timestamp)}</td><td>${getButtonTag(c.button)}</td><td>${c.utm_source||'<span style="color:var(--text-muted)">—</span>'}</td><td>${c.utm_campaign||'<span style="color:var(--text-muted)">—</span>'}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.referrer||'—'}</td></tr>`).join('');
+  document.getElementById('clickCount').textContent = `${clicks.length}건`;
+
+  // Submissions table
+  document.getElementById('submissionsTable').innerHTML = submissions.length===0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr>'
+    : submissions.slice().reverse().map(s=>`<tr><td>${formatTime(s.timestamp)}</td><td style="font-family:'Noto Sans KR',sans-serif;">${s.name}</td><td>${s.phone}</td><td>${s.email||'—'}</td><td>${s.utm_source||'<span style="color:var(--text-muted)">—</span>'}</td><td>${s.utm_campaign||'<span style="color:var(--text-muted)">—</span>'}</td></tr>`).join('');
+  document.getElementById('subCount').textContent = `${submissions.length}건`;
+
+  // Sources table
+  const sources={};
+  visits.forEach(v=>{
+    const k=`${v.utm_source||'direct'}|${v.utm_medium||'—'}|${v.utm_campaign||'—'}`;
+    if(!sources[k])sources[k]={v:0,c:0,s:0}; sources[k].v++;
+  });
+  clicks.forEach(c=>{
+    const k=`${c.utm_source||'direct'}|—|${c.utm_campaign||'—'}`;
+    if(!sources[k])sources[k]={v:0,c:0,s:0}; sources[k].c++;
+  });
+  submissions.forEach(s=>{
+    const k=`${s.utm_source||'direct'}|${s.utm_medium||'—'}|${s.utm_campaign||'—'}`;
+    if(!sources[k])sources[k]={v:0,c:0,s:0}; sources[k].s++;
+  });
+  const srcEntries=Object.entries(sources).sort((a,b)=>b[1].v-a[1].v);
+  document.getElementById('sourcesTable').innerHTML = srcEntries.length===0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">데이터가 없습니다</td></tr>'
+    : srcEntries.map(([k,val])=>{const[src,med,camp]=k.split('|');return `<tr><td><span class="tag tag-blue">${src}</span></td><td>${med}</td><td>${camp}</td><td>${val.v}</td><td>${val.c}</td><td>${val.s}</td></tr>`;}).join('');
+
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ko-KR');
+}
+
+function exportCSV() {
+  const d=getAnalytics();
+  let csv='=== 사전예약 신청 ===\nTimestamp,Name,Phone,Email,UTM_Source,UTM_Medium,UTM_Campaign\n';
+  d.submissions.forEach(s=>{csv+=`"${s.timestamp}","${s.name}","${s.phone}","${s.email||''}","${s.utm_source||''}","${s.utm_medium||''}","${s.utm_campaign||''}"\n`;});
+  csv+='\n=== 클릭 이벤트 ===\nTimestamp,Button,UTM_Source,UTM_Campaign,Referrer\n';
+  d.clicks.forEach(c=>{csv+=`"${c.timestamp}","${c.button}","${c.utm_source||''}","${c.utm_campaign||''}","${c.referrer||''}"\n`;});
+  csv+='\n=== 방문 기록 ===\nTimestamp,Referrer,Screen,UTM_Source,UTM_Medium,UTM_Campaign\n';
+  d.visits.forEach(v=>{csv+=`"${v.timestamp}","${v.referrer||''}","${v.screen||''}","${v.utm_source||''}","${v.utm_medium||''}","${v.utm_campaign||''}"\n`;});
+  dl(csv,'whitology_analytics.csv','text/csv');
+}
+function exportJSON() {
+  dl(JSON.stringify(getAnalytics(),null,2),'whitology_analytics.json','application/json');
+}
+function dl(content,filename,type) {
+  const b=new Blob([content],{type});const u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);
+}
+function clearData() {
+  if(confirm('모든 분석 데이터를 삭제하시겠습니까?')){localStorage.removeItem(STORAGE_KEY);renderDashboard();}
+}
+
+// Real-time updates via BroadcastChannel
+try{const bc=new BroadcastChannel('whitology_analytics');bc.onmessage=()=>renderDashboard();}catch(e){}
+
+// Auto refresh
+setInterval(renderDashboard,5000);
+renderDashboard();
+</script>
+</body>
+</html>
