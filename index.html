@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Whitology Admin — Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#f8f7fc;--surface:#ffffff;--surface-2:#f0eef6;
   --border:rgba(110,75,255,0.10);--border-hover:rgba(110,75,255,0.20);
-  --text:#111111;--text-sub:#444466;--text-muted:#777799;
+  --text:#111111;--text-sub:#444466;--text-muted:#444455;
   --accent:#6E4BFF;--accent-dim:rgba(110,75,255,0.08);
   --blue:#2F6BFF;--blue-dim:rgba(47,107,255,0.08);
   --coral:#ef4444;--coral-dim:rgba(239,68,68,0.08);
@@ -49,19 +50,39 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* Charts */
 .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:28px}
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(110,75,255,0.04)}
-.chart-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.chart-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px}
 .chart-card-title{font-size:1.05rem;font-weight:600;color:var(--text)}
 .chart-card-subtitle{font-size:.82rem;color:var(--text-muted)}
-.date-filter{display:flex;gap:6px}
-.date-filter button{background:var(--surface-2);border:1px solid var(--border);color:var(--text-sub);padding:5px 12px;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit;font-weight:500}
+.date-filter{display:flex;gap:4px}
+.date-filter button{background:var(--surface-2);border:1px solid var(--border);color:var(--text-sub);width:48px;padding:2px 0;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit;font-weight:500;line-height:1.4;display:inline-flex;align-items:center;justify-content:center}
 .date-filter button.active,.date-filter button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+/* 통합 필터 한 줄 */
+.chart-all-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chart-all-filters button{height:32px;padding:0 12px;border-radius:6px;font-size:.8rem;font-family:inherit;font-weight:500;cursor:pointer;transition:all .2s;background:var(--surface-2);border:1px solid var(--border);color:var(--text-sub)}
+.chart-all-filters button.active,.chart-all-filters button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.chart-all-filters input[type=date]{height:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;font-size:.8rem;font-family:inherit;color:var(--text);background:var(--surface);cursor:pointer;box-sizing:border-box}
+.chart-all-filters input[type=date]:focus{outline:none;border-color:var(--accent)}
+.chart-all-filters .range-sep{color:var(--text-muted);font-size:.82rem;line-height:32px}
+.chart-all-filters .btn-range-apply{background:var(--accent);color:#fff;border:none;font-weight:600}
+.chart-all-filters .btn-range-apply:hover{opacity:.85;color:#fff}
+.filter-divider{width:1px;height:20px;background:var(--border);margin:0 6px}
+.chart-filters-row{display:flex;align-items:center;gap:0;flex-wrap:wrap}
 
-.bar-chart{display:flex;align-items:flex-end;gap:6px;height:220px;padding-top:20px}
-.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
-.bar{width:100%;max-width:48px;border-radius:6px 6px 2px 2px;background:var(--accent);transition:height .6s;min-height:4px;opacity:.85}
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:140px;padding-top:12px;overflow:hidden}
+.bar-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bar{width:50%;max-width:32px;border-radius:4px 4px 2px 2px;background:var(--accent);transition:height .6s;min-height:4px;opacity:.85}
 .bar:hover{opacity:1}
-.bar-label{font-size:.72rem;color:var(--text-sub);font-family:'JetBrains Mono',monospace}
-.bar-value{font-size:.72rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:600}
+/* 14일 이상이면 글씨 더 작게 */
+.bar-label{font-size:.68rem;color:var(--text-sub);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:clip;max-width:100%;text-align:center}
+.bar-value{font-size:.68rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap}
+/* 날짜 범위 필터 */
+.date-range-filter{display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:wrap;justify-content:flex-end}
+.date-range-filter input[type=date]{padding:4px 9px;border:1px solid var(--border);border-radius:6px;font-size:.8rem;font-family:inherit;color:var(--text);background:var(--surface);cursor:pointer;box-sizing:border-box}
+.date-range-filter input[type=date]:focus{outline:none;border-color:var(--accent)}
+.date-range-filter .range-sep{color:var(--text-muted);font-size:.82rem}
+.btn-range-apply{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:6px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s;width:48px;padding:2px 0;line-height:1.4;display:inline-flex;align-items:center;justify-content:center}
+.btn-range-apply:hover{opacity:.85}
+.btn-range-reset{background:var(--surface-2);color:var(--text-sub);border:1px solid var(--border);border-radius:6px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s;width:48px;padding:2px 0;line-height:1.4;display:inline-flex;align-items:center;justify-content:center}
 
 .donut-container{display:flex;flex-direction:column;align-items:center;gap:24px;position:relative}
 .donut-legend{display:flex;flex-direction:column;gap:8px;width:100%}
@@ -120,8 +141,7 @@ tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="main-header-actions">
       <span class="badge-live">실시간</span>
-      <button class="btn-export" onclick="exportCSV()">📥 CSV</button>
-      <button class="btn-export" onclick="exportJSON()">📄 JSON</button>
+      <button class="btn-export" onclick="exportExcel()">📥 엑셀 다운로드</button>
       <button class="btn-clear" onclick="clearData()">🗑️ 초기화</button>
     </div>
   </div>
@@ -131,7 +151,7 @@ tbody tr:hover{background:var(--surface-2)}
     <div class="stat-card">
       <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--blue-dim);color:var(--blue);">👁</div>페이지 방문</div>
       <div class="stat-card-value" id="totalVisits">0</div>
-      <div class="stat-card-change up" id="visitsChange">오늘 +0</div>
+      <div class="stat-card-change up" id="visitsChange">오늘 +0<br></div>
       <div class="stat-card-desc">고객 페이지(index.html)에 접속한 총 횟수</div>
     </div>
     <div class="stat-card">
@@ -151,7 +171,7 @@ tbody tr:hover{background:var(--surface-2)}
     <div class="stat-card">
       <div class="stat-card-label"><div class="stat-card-icon" style="background:var(--violet-dim);color:var(--violet);">📈</div>클릭→신청 전환율</div>
       <div class="stat-card-value" id="clickToSubRate">0%</div>
-      <div class="stat-card-change" style="color:var(--text-muted);" id="clickToSubInfo">CTA 클릭 대비</div>
+      <div class="stat-card-change" style="color:var(--text-muted);" id="clickToSubInfo">CTA 클릭 대비<br></div>
       <div class="stat-card-desc">CTA 클릭 후 실제 신청 완료까지의 비율<br>= 신청 완료 / CTA 클릭 수</div>
     </div>
   </div>
@@ -166,6 +186,13 @@ tbody tr:hover{background:var(--surface-2)}
           <button onclick="setChartDays(14,this)">14일</button>
           <button onclick="setChartDays(30,this)">30일</button>
         </div>
+      </div>
+      <div class="date-range-filter">
+        <input type="date" id="rangeStart">
+        <span class="range-sep">~</span>
+        <input type="date" id="rangeEnd">
+        <button class="btn-range-apply" onclick="applyRange()">적용</button>
+        <button class="btn-range-reset" onclick="resetRange()">초기화</button>
       </div>
       <div class="bar-chart" id="visitChart"></div>
     </div>
@@ -230,6 +257,8 @@ tbody tr:hover{background:var(--surface-2)}
 const SUPABASE_URL = 'https://gzrtrjsrwsykqscefspa.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6cnRyanNyd3N5a3FzY2Vmc3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MzQ0MDEsImV4cCI6MjA4NzExMDQwMX0.v4MxWWoj2jUq2YjK_CdNI6Ll8bOaYmExJFshmhfMGnU';
 let chartDays = 7;
+let rangeStartDate = null;
+let rangeEndDate = null;
 
 async function fetchTable(table) {
   try {
@@ -273,8 +302,32 @@ function getButtonTag(id) { return '<span class="tag '+(BUTTON_TAGS[id]||'tag-bl
 
 function setChartDays(n, btn) {
   chartDays = n;
+  rangeStartDate = null;
+  rangeEndDate = null;
+  document.getElementById('rangeStart').value = '';
+  document.getElementById('rangeEnd').value = '';
   document.querySelectorAll('.date-filter button').forEach(function(b){b.classList.remove('active');});
   if(btn) btn.classList.add('active');
+  renderDashboard();
+}
+function applyRange() {
+  var s = document.getElementById('rangeStart').value;
+  var e = document.getElementById('rangeEnd').value;
+  if(!s || !e){ alert('시작일과 종료일을 모두 선택해주세요.'); return; }
+  if(s > e){ alert('시작일이 종료일보다 늦을 수 없습니다.'); return; }
+  rangeStartDate = s;
+  rangeEndDate = e;
+  document.querySelectorAll('.date-filter button').forEach(function(b){b.classList.remove('active');});
+  renderDashboard();
+}
+function resetRange() {
+  rangeStartDate = null;
+  rangeEndDate = null;
+  document.getElementById('rangeStart').value = '';
+  document.getElementById('rangeEnd').value = '';
+  document.querySelectorAll('.date-filter button').forEach(function(b){b.classList.remove('active');});
+  document.querySelector('.date-filter button').classList.add('active');
+  chartDays = 7;
   renderDashboard();
 }
 
@@ -302,16 +355,26 @@ async function renderDashboard() {
   document.getElementById('subConvRate').textContent = subConv+'%';
   document.getElementById('clickToSubRate').textContent = clickToSub+'%';
 
-  // Bar chart with date filter
+  // Bar chart with date filter or range
   var days = [];
-  for(var i=chartDays-1;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().split('T')[0]);}
-  document.getElementById('chartDateRange').textContent = '최근 '+chartDays+'일';
+  if(rangeStartDate && rangeEndDate) {
+    var cur = new Date(rangeStartDate);
+    var end = new Date(rangeEndDate);
+    while(cur <= end){ days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate()+1); }
+    document.getElementById('chartDateRange').textContent = rangeStartDate + ' ~ ' + rangeEndDate + ' (' + days.length + '일)';
+  } else {
+    for(var i=chartDays-1;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().split('T')[0]);}
+    document.getElementById('chartDateRange').textContent = '최근 '+chartDays+'일';
+  }
   var counts = days.map(function(day){return visits.filter(function(v){return v.timestamp.startsWith(day);}).length;});
   var max = Math.max.apply(null, counts.concat([1]));
+  // 날짜 수에 따라 레이블 표시 방식 조절
+  var labelStep = days.length > 20 ? 3 : days.length > 10 ? 2 : 1;
   document.getElementById('visitChart').innerHTML = days.map(function(day,i){
     var pct=(counts[i]/max)*100;
-    var label=new Date(day).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
-    return '<div class="bar-col"><div class="bar-value">'+counts[i]+'</div><div class="bar" style="height:'+Math.max(pct,3)+'%"></div><div class="bar-label">'+label+'</div></div>';
+    var showLabel = (i % labelStep === 0);
+    var label = showLabel ? new Date(day).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}) : '';
+    return '<div class="bar-col"><div class="bar-value" style="font-size:'+(days.length>20?'.6rem':'.68rem')+';">'+counts[i]+'</div><div class="bar" style="height:'+Math.max(pct,3)+'%"></div><div class="bar-label">'+label+'</div></div>';
   }).join('');
 
   // Donut
@@ -411,27 +474,109 @@ async function renderDashboard() {
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ko-KR');
 }
 
-async function exportCSV() {
+async function exportExcel() {
   var d = await getAnalytics();
-  var csv='=== 사전예약 신청 ===\nTimestamp,Name,Phone,Email,Gender,Age,UTM_Source,UTM_Medium,UTM_Campaign\n';
-  d.submissions.forEach(function(s){csv+='"'+s.timestamp+'","'+s.name+'","'+s.phone+'","'+(s.email||'')+'","'+(s.gender||'')+'","'+(s.age||'')+'","'+(s.utm_source||'')+'","'+(s.utm_medium||'')+'","'+(s.utm_campaign||'')+'"\n';});
-  dl(csv,'whitology_analytics.csv','text/csv');
-}
-async function exportJSON() {
-  var d = await getAnalytics();
-  dl(JSON.stringify(d,null,2),'whitology_analytics.json','application/json');
-}
-function dl(content,filename,type) {
-  var b=new Blob([content],{type:type});var u=URL.createObjectURL(b);
-  var a=document.createElement('a');a.href=u;a.download=filename;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);
+  var wb = XLSX.utils.book_new();
+
+  function classifySrc(utm) {
+    if(!utm || utm === 'direct') return '직접 유입';
+    if(utm === 'meta' || utm === 'facebook' || utm === 'instagram') return '메타 광고';
+    return '링크 유입';
+  }
+
+  // 시트1: 사전예약 신청 목록
+  var subRows = [['시간','이름','연락처','이메일','성별','연령대','유입경로']];
+  var GENDER_LABELS = {'male':'남성','female':'여성','other':'기타'};
+  var AGE_LABELS = {'10s':'10대','20s':'20대','30s':'30대','40s':'40대','50+':'50대 이상'};
+  d.submissions.slice().reverse().forEach(function(s){
+    subRows.push([
+      new Date(s.timestamp).toLocaleString('ko-KR'),
+      s.name, s.phone, s.email||'',
+      GENDER_LABELS[s.gender]||(s.gender||''),
+      AGE_LABELS[s.age]||(s.age||''),
+      classifySrc(s.utm_source)
+    ]);
+  });
+  var ws1 = XLSX.utils.aoa_to_sheet(subRows);
+  ws1['!cols'] = [{wch:18},{wch:10},{wch:14},{wch:22},{wch:6},{wch:8},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws1, '사전예약 신청');
+
+  // 시트2: 유입 경로 분석
+  var srcMap = {'메타 광고':{v:0,c:0,s:0},'링크 유입':{v:0,c:0,s:0},'직접 유입':{v:0,c:0,s:0}};
+  d.visits.forEach(function(v){srcMap[classifySrc(v.utm_source)].v++;});
+  d.clicks.forEach(function(c){srcMap[classifySrc(c.utm_source)].c++;});
+  d.submissions.forEach(function(s){srcMap[classifySrc(s.utm_source)].s++;});
+  var srcRows = [['유입 경로','방문수','클릭수','신청수','신청 전환율']];
+  Object.entries(srcMap).forEach(function(e){
+    var conv = e[1].v > 0 ? ((e[1].s/e[1].v)*100).toFixed(1)+'%' : '—';
+    srcRows.push([e[0], e[1].v, e[1].c, e[1].s, conv]);
+  });
+  var ws2 = XLSX.utils.aoa_to_sheet(srcRows);
+  ws2['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:8},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, '유입 경로 분석');
+
+  // 시트3: CTA 클릭 분포
+  var BUTTON_LABELS = {
+    'nav_cta':'[상단 네비] 케어 젤 3종 무료 증정',
+    'hero_cta_primary':'[히어로 메인] 케어 젤 3종 무료 증정',
+    'hero_cta_secondary':'[히어로 서브] 자세히 알아보기',
+    'bottom_cta':'[하단 섹션] 오늘만! 케어 젤 3종 무료 증정',
+    'floating_cta':'[플로팅 배너] 오늘만! 케어 젤 3종 무료 증정'
+  };
+  var clickMap = {};
+  d.clicks.forEach(function(c){ clickMap[c.button]=(clickMap[c.button]||0)+1; });
+  var total = d.clicks.length;
+  var clickRows = [['버튼','클릭수','비율']];
+  Object.entries(clickMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+    clickRows.push([BUTTON_LABELS[e[0]]||e[0], e[1], total>0 ? ((e[1]/total)*100).toFixed(1)+'%' : '—']);
+  });
+  var ws3 = XLSX.utils.aoa_to_sheet(clickRows);
+  ws3['!cols'] = [{wch:36},{wch:8},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'CTA 클릭 분포');
+
+  var today = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, 'whitology_analytics_'+today+'.xlsx');
 }
 function clearData() {
-  alert('데이터 삭제는 Supabase 대시보드에서 직접 해주세요.\nhttps://supabase.com/dashboard');
+  document.getElementById('clearModal').style.display='flex';
+}
+function clearModalConfirm() {
+  document.getElementById('clearModal').style.display='none';
+  document.getElementById('clearResult').style.display='flex';
+}
+function clearModalCancel() {
+  document.getElementById('clearModal').style.display='none';
+}
+function clearResultClose() {
+  document.getElementById('clearResult').style.display='none';
 }
 
 setInterval(renderDashboard, 10000);
 renderDashboard();
 </script>
+
+<!-- 초기화 확인 모달 -->
+<div id="clearModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+    <div style="font-size:2.4rem;margin-bottom:12px;">⚠️</div>
+    <div style="font-size:1.15rem;font-weight:700;color:#111;margin-bottom:10px;">정말 초기화하시겠습니까?</div>
+    <div style="font-size:.9rem;color:#555;line-height:1.7;margin-bottom:28px;">삭제된 데이터는 <strong>복구할 수 없습니다.</strong><br>신중하게 결정해 주세요.</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="clearModalCancel()" style="flex:1;padding:11px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;color:#444;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;">취소</button>
+      <button onclick="clearModalConfirm()" style="flex:1;padding:11px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:.92rem;font-weight:700;cursor:pointer;font-family:inherit;">삭제 진행</button>
+    </div>
+  </div>
+</div>
+
+<!-- 초기화 안내 결과 모달 -->
+<div id="clearResult" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+    <div style="font-size:2.4rem;margin-bottom:12px;">🗄️</div>
+    <div style="font-size:1.1rem;font-weight:700;color:#111;margin-bottom:10px;">Supabase에서 직접 삭제해 주세요</div>
+    <div style="font-size:.88rem;color:#555;line-height:1.7;margin-bottom:20px;">데이터 삭제는 Supabase 대시보드에서<br>직접 진행해야 합니다.</div>
+    <a href="https://supabase.com/dashboard" target="_blank" style="display:inline-block;margin-bottom:20px;padding:10px 22px;background:#6E4BFF;color:#fff;border-radius:10px;font-size:.9rem;font-weight:700;text-decoration:none;">Supabase 대시보드 열기 →</a><br>
+    <button onclick="clearResultClose()" style="padding:9px 24px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;color:#444;font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit;">닫기</button>
+  </div>
+</div>
 </body>
 </html>
