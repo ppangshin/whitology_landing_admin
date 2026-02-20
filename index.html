@@ -227,12 +227,30 @@ tbody tr:hover{background:var(--surface-2)}
 </main>
 
 <script>
-const STORAGE_KEY = 'whitology_analytics';
+const SUPABASE_URL = 'https://gzrtrjsrwsykqscefspa.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6cnRyanNyd3N5a3FzY2Vmc3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MzQ0MDEsImV4cCI6MjA4NzExMDQwMX0.v4MxWWoj2jUq2YjK_CdNI6Ll8bOaYmExJFshmhfMGnU';
 let chartDays = 7;
 
-function getAnalytics() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {visits:[],clicks:[],submissions:[]}; }
-  catch { return {visits:[],clicks:[],submissions:[]}; }
+async function fetchTable(table) {
+  try {
+    const res = await fetch(SUPABASE_URL+'/rest/v1/'+table+'?select=*&order=created_at.desc&limit=1000', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY }
+    });
+    return await res.json();
+  } catch(e) { return []; }
+}
+
+async function getAnalytics() {
+  const [reservations, visits, clicks] = await Promise.all([
+    fetchTable('reservations'),
+    fetchTable('visits'),
+    fetchTable('clicks')
+  ]);
+  return {
+    submissions: reservations.map(r => ({...r, timestamp: r.created_at})),
+    visits: visits.map(v => ({...v, timestamp: v.created_at})),
+    clicks: clicks.map(c => ({...c, timestamp: c.created_at}))
+  };
 }
 
 function formatTime(iso) {
@@ -260,8 +278,8 @@ function setChartDays(n, btn) {
   renderDashboard();
 }
 
-function renderDashboard() {
-  var data = getAnalytics();
+async function renderDashboard() {
+  var data = await getAnalytics();
   var visits=data.visits, clicks=data.clicks, submissions=data.submissions;
 
   // Stat cards
@@ -393,18 +411,15 @@ function renderDashboard() {
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ko-KR');
 }
 
-function exportCSV() {
-  var d=getAnalytics();
+async function exportCSV() {
+  var d = await getAnalytics();
   var csv='=== 사전예약 신청 ===\nTimestamp,Name,Phone,Email,Gender,Age,UTM_Source,UTM_Medium,UTM_Campaign\n';
   d.submissions.forEach(function(s){csv+='"'+s.timestamp+'","'+s.name+'","'+s.phone+'","'+(s.email||'')+'","'+(s.gender||'')+'","'+(s.age||'')+'","'+(s.utm_source||'')+'","'+(s.utm_medium||'')+'","'+(s.utm_campaign||'')+'"\n';});
-  csv+='\n=== 클릭 이벤트 ===\nTimestamp,Button,UTM_Source,UTM_Campaign,Referrer\n';
-  d.clicks.forEach(function(c){csv+='"'+c.timestamp+'","'+c.button+'","'+(c.utm_source||'')+'","'+(c.utm_campaign||'')+'","'+(c.referrer||'')+'"\n';});
-  csv+='\n=== 방문 기록 ===\nTimestamp,Referrer,Screen,UTM_Source,UTM_Medium,UTM_Campaign\n';
-  d.visits.forEach(function(v){csv+='"'+v.timestamp+'","'+(v.referrer||'')+'","'+(v.screen||'')+'","'+(v.utm_source||'')+'","'+(v.utm_medium||'')+'","'+(v.utm_campaign||'')+'"\n';});
   dl(csv,'whitology_analytics.csv','text/csv');
 }
-function exportJSON() {
-  dl(JSON.stringify(getAnalytics(),null,2),'whitology_analytics.json','application/json');
+async function exportJSON() {
+  var d = await getAnalytics();
+  dl(JSON.stringify(d,null,2),'whitology_analytics.json','application/json');
 }
 function dl(content,filename,type) {
   var b=new Blob([content],{type:type});var u=URL.createObjectURL(b);
@@ -412,11 +427,10 @@ function dl(content,filename,type) {
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);
 }
 function clearData() {
-  if(confirm('모든 분석 데이터를 삭제하시겠습니까?')){localStorage.removeItem(STORAGE_KEY);renderDashboard();}
+  alert('데이터 삭제는 Supabase 대시보드에서 직접 해주세요.\nhttps://supabase.com/dashboard');
 }
 
-try{var bch=new BroadcastChannel('whitology_analytics');bch.onmessage=function(){renderDashboard();};}catch(e){}
-setInterval(renderDashboard,5000);
+setInterval(renderDashboard, 10000);
 renderDashboard();
 </script>
 </body>
