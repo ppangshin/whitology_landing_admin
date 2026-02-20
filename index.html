@@ -36,12 +36,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .btn-clear{background:var(--coral-dim);border:1px solid rgba(255,107,107,.2);color:var(--coral);padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;font-family:inherit}
 
 /* Stat Cards — 5 columns: 방문, CTA클릭+전환율, 예약버튼클릭, 예약완료+전환율 */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;align-items:start}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(110,75,255,0.04)}
 .stat-card-label{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--text-sub);font-weight:600;margin-bottom:14px}
 .stat-card-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem}
 .stat-card-value{font-family:'JetBrains Mono',monospace;font-size:2.4rem;font-weight:600;line-height:1;margin-bottom:8px;color:var(--text)}
-.stat-card-change{font-size:.82rem;font-weight:500;min-height: 32px}
+.stat-card-change{font-size:.82rem;font-weight:500}
 .stat-card-change.up{color:var(--green)}
 .stat-card-sub{font-size:.82rem;color:var(--text-sub);margin-top:6px;display:flex;align-items:center;gap:6px}
 .stat-card-sub .conv-rate{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent);font-size:.92rem}
