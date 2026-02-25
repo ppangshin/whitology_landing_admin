@@ -246,7 +246,7 @@ tbody tr:hover{background:var(--surface-2)}
     <h4>📌 지표 정의</h4>
     <p>
       <strong>페이지 방문</strong>: 고객 페이지(index.html)에 접속한 총 횟수<br>
-      <strong>CTA 클릭</strong>: "사전예약하기", "케어 젤 3종 무료 받기" 등 모든 CTA 버튼 클릭 수 (상단, 히어로, 하단, 플로팅 포함)<br>
+      <strong>CTA 클릭</strong>: "결제없이 사전예약만 해도 케어젤 무료" 등 모든 CTA 버튼 클릭 수 (상단, 히어로, 하단, 플로팅 포함)<br>
       <strong>사전예약 신청 완료</strong>: 모달에서 이름·연락처 입력 후 "사전예약 신청하기" 버튼을 눌러 최종 완료한 수<br>
       <strong>CTA 클릭 전환율</strong>: CTA 클릭 수 / 페이지 방문 수 × 100<br>
       <strong>신청 완료 전환율</strong>: 사전예약 신청 완료 수 / 페이지 방문 수 × 100<br>
@@ -519,11 +519,11 @@ async function exportExcel() {
 
   // 시트3: CTA 클릭 분포
   var BUTTON_LABELS = {
-    'nav_cta':'[상단 네비] 케어 젤 3종 무료 증정',
-    'hero_cta_primary':'[히어로 메인] 케어 젤 3종 무료 증정',
+    'nav_cta':'[상단 네비] 결제없이 사전예약만 해도 케어젤 무료',
+    'hero_cta_primary':'[히어로 메인] 결제없이 사전예약만 해도 케어젤 무료',
     'hero_cta_secondary':'[히어로 서브] 자세히 알아보기',
-    'bottom_cta':'[하단 섹션] 오늘만! 케어 젤 3종 무료 증정',
-    'floating_cta':'[플로팅 배너] 오늘만! 케어 젤 3종 무료 증정'
+    'bottom_cta':'[하단 섹션] 결제없이 사전예약만 해도 케어젤 무료',
+    'floating_cta':'[플로팅 배너] 결제없이 사전예약만 해도 케어젤 무료'
   };
   var clickMap = {};
   d.clicks.forEach(function(c){ clickMap[c.button]=(clickMap[c.button]||0)+1; });
@@ -535,6 +535,44 @@ async function exportExcel() {
   var ws3 = XLSX.utils.aoa_to_sheet(clickRows);
   ws3['!cols'] = [{wch:36},{wch:8},{wch:8}];
   XLSX.utils.book_append_sheet(wb, ws3, 'CTA 클릭 분포');
+
+  // 시트4: 일자별 통합 분석
+  var dateMap = {};
+  function getDateKey(iso) { return iso ? iso.split('T')[0] : ''; }
+  d.visits.forEach(function(v){
+    var dk = getDateKey(v.created_at||v.timestamp);
+    if(!dk) return;
+    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
+    dateMap[dk].v++;
+  });
+  d.clicks.forEach(function(c){
+    var dk = getDateKey(c.created_at||c.timestamp);
+    if(!dk) return;
+    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
+    dateMap[dk].c++;
+    dateMap[dk].cta[c.button] = (dateMap[dk].cta[c.button]||0)+1;
+  });
+  d.submissions.forEach(function(s){
+    var dk = getDateKey(s.created_at||s.timestamp);
+    if(!dk) return;
+    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
+    dateMap[dk].s++;
+  });
+  var ctaKeys = ['nav_cta','hero_cta_primary','hero_cta_secondary','bottom_cta','floating_cta'];
+  var ctaColNames = ['[상단] 클릭수','[히어로] 클릭수','[자세히보기] 클릭수','[하단] 클릭수','[플로팅] 클릭수'];
+  var dailyHeader = ['일자','방문수','클릭수','신청수','방문→클릭 전환율','방문→신청 전환율','클릭→신청 전환율'].concat(ctaColNames);
+  var dailyRows = [dailyHeader];
+  Object.keys(dateMap).sort().forEach(function(dk){
+    var row = dateMap[dk];
+    var vToC = row.v > 0 ? ((row.c/row.v)*100).toFixed(1)+'%' : '—';
+    var vToS = row.v > 0 ? ((row.s/row.v)*100).toFixed(1)+'%' : '—';
+    var cToS = row.c > 0 ? ((row.s/row.c)*100).toFixed(1)+'%' : '—';
+    var ctaCols = ctaKeys.map(function(k){ return row.cta[k]||0; });
+    dailyRows.push([dk, row.v, row.c, row.s, vToC, vToS, cToS].concat(ctaCols));
+  });
+  var ws4 = XLSX.utils.aoa_to_sheet(dailyRows);
+  ws4['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:8},{wch:16},{wch:16},{wch:16},{wch:14},{wch:14},{wch:16},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws4, '일자별 통합 분석');
 
   var today = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, 'whitology_analytics_'+today+'.xlsx');
