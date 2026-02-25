@@ -33,7 +33,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .btn-export{background:var(--surface);border:1px solid var(--border);color:var(--text-sub);padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 .btn-export:hover{border-color:var(--accent);color:var(--accent)}
-.btn-clear{background:var(--coral-dim);border:1px solid rgba(255,107,107,.2);color:var(--coral);padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;font-family:inherit}
 
 /* Stat Cards — 5 columns: 방문, CTA클릭+전환율, 예약버튼클릭, 예약완료+전환율 */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;align-items:start}
@@ -142,7 +141,7 @@ tbody tr:hover{background:var(--surface-2)}
     <div class="main-header-actions">
       <span class="badge-live">실시간</span>
       <button class="btn-export" onclick="exportExcel()">📥 엑셀 다운로드</button>
-      <button class="btn-clear" onclick="clearData()">🗑️ 초기화</button>
+
     </div>
   </div>
 
@@ -246,7 +245,7 @@ tbody tr:hover{background:var(--surface-2)}
     <h4>📌 지표 정의</h4>
     <p>
       <strong>페이지 방문</strong>: 고객 페이지(index.html)에 접속한 총 횟수<br>
-      <strong>CTA 클릭</strong>: "결제없이 사전예약만 해도 케어젤 무료" 등 모든 CTA 버튼 클릭 수 (상단, 히어로, 하단, 플로팅 포함)<br>
+      <strong>CTA 클릭</strong>: "사전예약하기", "케어 젤 3종 무료 받기" 등 모든 CTA 버튼 클릭 수 (상단, 히어로, 하단, 플로팅 포함)<br>
       <strong>사전예약 신청 완료</strong>: 모달에서 이름·연락처 입력 후 "사전예약 신청하기" 버튼을 눌러 최종 완료한 수<br>
       <strong>CTA 클릭 전환율</strong>: CTA 클릭 수 / 페이지 방문 수 × 100<br>
       <strong>신청 완료 전환율</strong>: 사전예약 신청 완료 수 / 페이지 방문 수 × 100<br>
@@ -480,143 +479,111 @@ async function exportExcel() {
   var d = await getAnalytics();
   var wb = XLSX.utils.book_new();
 
+  var GENDER_LABELS_XL = {'male':'남성','female':'여성','other':'기타'};
+  var AGE_LABELS_XL = {'10s':'10대','20s':'20대','30s':'30대','40s':'40대','50+':'50대 이상'};
+  var BUTTON_LABELS_XL = {
+    'nav_cta':'[상단 네비] 사전예약',
+    'hero_cta_primary':'[히어로 메인] CTA',
+    'hero_cta_secondary':'[히어로 서브] 자세히 알아보기',
+    'bottom_cta':'[하단 섹션] CTA',
+    'floating_cta':'[플로팅 배너] CTA'
+  };
+  var ctaBtns = ['nav_cta','hero_cta_primary','hero_cta_secondary','bottom_cta','floating_cta'];
+
   function classifySrc(utm) {
     if(!utm || utm === 'direct') return '직접 유입';
     if(utm === 'meta' || utm === 'facebook' || utm === 'instagram') return '메타 광고';
     return '링크 유입';
   }
+  function pct(a, b) { return b > 0 ? parseFloat(((a/b)*100).toFixed(1)) : 0; }
 
-  // 시트1: 사전예약 신청 목록
-  var subRows = [['시간','이름','연락처','이메일','성별','연령대','유입경로']];
-  var GENDER_LABELS = {'male':'남성','female':'여성','other':'기타'};
-  var AGE_LABELS = {'10s':'10대','20s':'20대','30s':'30대','40s':'40대','50+':'50대 이상'};
+  // 전체 집계
+  var totalV = d.visits.length;
+  var totalC = d.clicks.length;
+  var totalS = d.submissions.length;
+  var ctaConvRate = pct(totalC, totalV);
+  var subConvRate = pct(totalS, totalV);
+  var clickToSub  = pct(totalS, totalC);
+
+  // CTA 버튼별 클릭수
+  var clickMap = {};
+  d.clicks.forEach(function(c){ clickMap[c.button]=(clickMap[c.button]||0)+1; });
+
+  // 유입경로별 집계
+  var srcMap = {'메타 광고':{v:0,c:0,s:0},'링크 유입':{v:0,c:0,s:0},'직접 유입':{v:0,c:0,s:0}};
+  d.visits.forEach(function(v){ srcMap[classifySrc(v.utm_source)].v++; });
+  d.clicks.forEach(function(c){ srcMap[classifySrc(c.utm_source)].c++; });
+  d.submissions.forEach(function(s){ srcMap[classifySrc(s.utm_source)].s++; });
+
+  // ══════════════════════════════════════════
+  // 시트 1: 📊 요약 지표 (가장 먼저 보이는 시트)
+  // ══════════════════════════════════════════
+  var summaryRows = [
+    ['📊 Whitology Analytics — 요약 지표', '', new Date().toLocaleString('ko-KR') + ' 기준'],
+    [],
+    ['▶ 메인 지표'],
+    ['지표', '값', '설명'],
+    ['총 방문수',          totalV,          '페이지 접속 총 횟수'],
+    ['총 CTA 클릭수',      totalC,          'CTA 버튼 전체 클릭 합계'],
+    ['총 신청 완료수',     totalS,          '이름·연락처 입력 후 신청 완료'],
+    ['CTA 클릭 전환율',   ctaConvRate+'%', 'CTA 클릭 / 방문수 × 100'],
+    ['신청 전환율',        subConvRate+'%', '신청 완료 / 방문수 × 100'],
+    ['클릭→신청 전환율',  clickToSub+'%',  '신청 완료 / CTA 클릭수 × 100'],
+    [],
+    ['▶ 유입경로별 집계'],
+    ['유입경로', '방문수', 'CTA 클릭수', '신청수', 'CTA 클릭 전환율', '신청 전환율', '클릭→신청 전환율']
+  ];
+  ['메타 광고','링크 유입','직접 유입'].forEach(function(k){
+    var s = srcMap[k];
+    summaryRows.push([k, s.v, s.c, s.s, pct(s.c,s.v)+'%', pct(s.s,s.v)+'%', pct(s.s,s.c)+'%']);
+  });
+  summaryRows.push([]);
+  summaryRows.push(['▶ CTA 버튼별 클릭 분포']);
+  summaryRows.push(['CTA 버튼', '클릭수', '전체 대비 비율(%)']);
+  ctaBtns.forEach(function(b){
+    var cnt = clickMap[b]||0;
+    summaryRows.push([BUTTON_LABELS_XL[b]||b, cnt, pct(cnt, totalC)+'%']);
+  });
+
+  var wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{wch:22},{wch:12},{wch:24},{wch:10},{wch:18},{wch:14},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, '요약 지표');
+
+  // ══════════════════════════════════════════
+  // 시트 2: 📋 사전예약 신청 목록 (기본 컬럼)
+  // ══════════════════════════════════════════
+  var subHeader = ['신청시간','이름','연락처','이메일','성별','연령대','유입경로구분','UTM Source','UTM Medium','UTM Campaign'];
+  var subRows = [subHeader];
   d.submissions.slice().reverse().forEach(function(s){
     subRows.push([
       new Date(s.timestamp).toLocaleString('ko-KR'),
-      s.name, s.phone, s.email||'',
-      GENDER_LABELS[s.gender]||(s.gender||''),
-      AGE_LABELS[s.age]||(s.age||''),
-      classifySrc(s.utm_source)
+      s.name,
+      s.phone,
+      s.email||'',
+      GENDER_LABELS_XL[s.gender]||(s.gender||'미입력'),
+      AGE_LABELS_XL[s.age]||(s.age||'미입력'),
+      classifySrc(s.utm_source),
+      s.utm_source||'direct',
+      s.utm_medium||'',
+      s.utm_campaign||''
     ]);
   });
-  var ws1 = XLSX.utils.aoa_to_sheet(subRows);
-  ws1['!cols'] = [{wch:18},{wch:10},{wch:14},{wch:22},{wch:6},{wch:8},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, ws1, '사전예약 신청');
+  if(d.submissions.length === 0) subRows.push(['신청 데이터 없음']);
 
-  // 시트2: 유입 경로 분석
-  var srcMap = {'메타 광고':{v:0,c:0,s:0},'링크 유입':{v:0,c:0,s:0},'직접 유입':{v:0,c:0,s:0}};
-  d.visits.forEach(function(v){srcMap[classifySrc(v.utm_source)].v++;});
-  d.clicks.forEach(function(c){srcMap[classifySrc(c.utm_source)].c++;});
-  d.submissions.forEach(function(s){srcMap[classifySrc(s.utm_source)].s++;});
-  var srcRows = [['유입 경로','방문수','클릭수','신청수','신청 전환율']];
-  Object.entries(srcMap).forEach(function(e){
-    var conv = e[1].v > 0 ? ((e[1].s/e[1].v)*100).toFixed(1)+'%' : '—';
-    srcRows.push([e[0], e[1].v, e[1].c, e[1].s, conv]);
-  });
-  var ws2 = XLSX.utils.aoa_to_sheet(srcRows);
-  ws2['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:8},{wch:12}];
-  XLSX.utils.book_append_sheet(wb, ws2, '유입 경로 분석');
-
-  // 시트3: CTA 클릭 분포
-  var BUTTON_LABELS = {
-    'nav_cta':'[상단 네비] 결제없이 사전예약만 해도 케어젤 무료',
-    'hero_cta_primary':'[히어로 메인] 결제없이 사전예약만 해도 케어젤 무료',
-    'hero_cta_secondary':'[히어로 서브] 자세히 알아보기',
-    'bottom_cta':'[하단 섹션] 결제없이 사전예약만 해도 케어젤 무료',
-    'floating_cta':'[플로팅 배너] 결제없이 사전예약만 해도 케어젤 무료'
-  };
-  var clickMap = {};
-  d.clicks.forEach(function(c){ clickMap[c.button]=(clickMap[c.button]||0)+1; });
-  var total = d.clicks.length;
-  var clickRows = [['버튼','클릭수','비율']];
-  Object.entries(clickMap).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
-    clickRows.push([BUTTON_LABELS[e[0]]||e[0], e[1], total>0 ? ((e[1]/total)*100).toFixed(1)+'%' : '—']);
-  });
-  var ws3 = XLSX.utils.aoa_to_sheet(clickRows);
-  ws3['!cols'] = [{wch:36},{wch:8},{wch:8}];
-  XLSX.utils.book_append_sheet(wb, ws3, 'CTA 클릭 분포');
-
-  // 시트4: 일자별 통합 분석
-  var dateMap = {};
-  function getDateKey(iso) { return iso ? iso.split('T')[0] : ''; }
-  d.visits.forEach(function(v){
-    var dk = getDateKey(v.created_at||v.timestamp);
-    if(!dk) return;
-    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
-    dateMap[dk].v++;
-  });
-  d.clicks.forEach(function(c){
-    var dk = getDateKey(c.created_at||c.timestamp);
-    if(!dk) return;
-    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
-    dateMap[dk].c++;
-    dateMap[dk].cta[c.button] = (dateMap[dk].cta[c.button]||0)+1;
-  });
-  d.submissions.forEach(function(s){
-    var dk = getDateKey(s.created_at||s.timestamp);
-    if(!dk) return;
-    if(!dateMap[dk]) dateMap[dk] = {v:0, c:0, s:0, cta:{}};
-    dateMap[dk].s++;
-  });
-  var ctaKeys = ['nav_cta','hero_cta_primary','hero_cta_secondary','bottom_cta','floating_cta'];
-  var ctaColNames = ['[상단] 클릭수','[히어로] 클릭수','[자세히보기] 클릭수','[하단] 클릭수','[플로팅] 클릭수'];
-  var dailyHeader = ['일자','방문수','클릭수','신청수','방문→클릭 전환율','방문→신청 전환율','클릭→신청 전환율'].concat(ctaColNames);
-  var dailyRows = [dailyHeader];
-  Object.keys(dateMap).sort().forEach(function(dk){
-    var row = dateMap[dk];
-    var vToC = row.v > 0 ? ((row.c/row.v)*100).toFixed(1)+'%' : '—';
-    var vToS = row.v > 0 ? ((row.s/row.v)*100).toFixed(1)+'%' : '—';
-    var cToS = row.c > 0 ? ((row.s/row.c)*100).toFixed(1)+'%' : '—';
-    var ctaCols = ctaKeys.map(function(k){ return row.cta[k]||0; });
-    dailyRows.push([dk, row.v, row.c, row.s, vToC, vToS, cToS].concat(ctaCols));
-  });
-  var ws4 = XLSX.utils.aoa_to_sheet(dailyRows);
-  ws4['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:8},{wch:16},{wch:16},{wch:16},{wch:14},{wch:14},{wch:16},{wch:14},{wch:14}];
-  XLSX.utils.book_append_sheet(wb, ws4, '일자별 통합 분석');
+  var wsSub = XLSX.utils.aoa_to_sheet(subRows);
+  wsSub['!cols'] = [{wch:20},{wch:10},{wch:14},{wch:24},{wch:6},{wch:8},{wch:10},{wch:14},{wch:14},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsSub, '사전예약 신청목록');
 
   var today = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, 'whitology_analytics_'+today+'.xlsx');
 }
-function clearData() {
-  document.getElementById('clearModal').style.display='flex';
-}
-function clearModalConfirm() {
-  document.getElementById('clearModal').style.display='none';
-  document.getElementById('clearResult').style.display='flex';
-}
-function clearModalCancel() {
-  document.getElementById('clearModal').style.display='none';
-}
-function clearResultClose() {
-  document.getElementById('clearResult').style.display='none';
-}
+
 
 setInterval(renderDashboard, 10000);
 renderDashboard();
 </script>
 
-<!-- 초기화 확인 모달 -->
-<div id="clearModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
-    <div style="font-size:2.4rem;margin-bottom:12px;">⚠️</div>
-    <div style="font-size:1.15rem;font-weight:700;color:#111;margin-bottom:10px;">정말 초기화하시겠습니까?</div>
-    <div style="font-size:.9rem;color:#555;line-height:1.7;margin-bottom:28px;">삭제된 데이터는 <strong>복구할 수 없습니다.</strong><br>신중하게 결정해 주세요.</div>
-    <div style="display:flex;gap:10px;justify-content:center;">
-      <button onclick="clearModalCancel()" style="flex:1;padding:11px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;color:#444;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;">취소</button>
-      <button onclick="clearModalConfirm()" style="flex:1;padding:11px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:.92rem;font-weight:700;cursor:pointer;font-family:inherit;">삭제 진행</button>
-    </div>
-  </div>
-</div>
 
-<!-- 초기화 안내 결과 모달 -->
-<div id="clearResult" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:20px;padding:36px 32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
-    <div style="font-size:2.4rem;margin-bottom:12px;">🗄️</div>
-    <div style="font-size:1.1rem;font-weight:700;color:#111;margin-bottom:10px;">Supabase에서 직접 삭제해 주세요</div>
-    <div style="font-size:.88rem;color:#555;line-height:1.7;margin-bottom:20px;">데이터 삭제는 Supabase 대시보드에서<br>직접 진행해야 합니다.</div>
-    <a href="https://supabase.com/dashboard" target="_blank" style="display:inline-block;margin-bottom:20px;padding:10px 22px;background:#6E4BFF;color:#fff;border-radius:10px;font-size:.9rem;font-weight:700;text-decoration:none;">Supabase 대시보드 열기 →</a><br>
-    <button onclick="clearResultClose()" style="padding:9px 24px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;color:#444;font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit;">닫기</button>
-  </div>
-</div>
+
 </body>
 </html>
