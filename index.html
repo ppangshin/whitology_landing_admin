@@ -289,8 +289,11 @@ function formatTime(iso) {
 function isToday(iso) { return new Date(iso).toDateString() === new Date().toDateString(); }
 
 const BUTTON_LABELS = {
-  'nav_cta':'상단 사전예약','hero_cta_primary':'히어로 CTA',
-  'hero_cta_secondary':'자세히 알아보기','bottom_cta':'하단 CTA','floating_cta':'플로팅 버튼'
+  'nav_cta':'[상단 네비] 사전예약만 해도 케어젤 무료',
+  'hero_cta_primary':'[히어로] 케어 젤 3종 무료 증정',
+  'hero_cta_secondary':'[히어로] 자세히 알아보기',
+  'bottom_cta':'[하단] 오늘만! 케어 젤 3종 무료 증정',
+  'floating_cta':'[플로팅] 오늘만! 케어 젤 3종 무료 증정'
 };
 const BUTTON_TAGS = {
   'nav_cta':'tag-blue','hero_cta_primary':'tag-green',
@@ -482,11 +485,11 @@ async function exportExcel() {
   var GENDER_LABELS_XL = {'male':'남성','female':'여성','other':'기타'};
   var AGE_LABELS_XL = {'10s':'10대','20s':'20대','30s':'30대','40s':'40대','50+':'50대 이상'};
   var BUTTON_LABELS_XL = {
-    'nav_cta':'[상단 네비] 사전예약',
-    'hero_cta_primary':'[히어로 메인] CTA',
-    'hero_cta_secondary':'[히어로 서브] 자세히 알아보기',
-    'bottom_cta':'[하단 섹션] CTA',
-    'floating_cta':'[플로팅 배너] CTA'
+    'nav_cta':'[상단 네비] 사전예약만 해도 케어젤 무료',
+    'hero_cta_primary':'[히어로] 케어 젤 3종 무료 증정',
+    'hero_cta_secondary':'[히어로] 자세히 알아보기',
+    'bottom_cta':'[하단] 오늘만! 케어 젤 3종 무료 증정',
+    'floating_cta':'[플로팅] 오늘만! 케어 젤 3종 무료 증정'
   };
   var ctaBtns = ['nav_cta','hero_cta_primary','hero_cta_secondary','bottom_cta','floating_cta'];
 
